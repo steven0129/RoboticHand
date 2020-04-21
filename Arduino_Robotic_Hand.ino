@@ -1,116 +1,84 @@
-/*
- * 
+#include <Servo.h>  // 引入控制伺服馬達的函式庫
 
-  This code works with the Machines That Emulate Humans workbook and lesson plan
-  Available from the Microsoft Education Workshop at http://aka.ms/hackingSTEM   
-  It also contians code for the Rock, Paper, Scissors (RPS) workbook
-   
-  This projects uses an Arduino UNO microcontroller board. More information can
-  be found by visiting the Arduino website: https://www.arduino.cc/en/main/arduinoBoardUno
- 
-  See https://www.arduino.cc/en/Guide/HomePage for board specific details and tutorials.
+// 會出現在序列埠(Serial)訊息裡面的常數
+const String mDELIMETER = ",";            // 輸入Data Streamer的字串需要用逗號分隔
 
-  This project relies upon the construction of a sensorized glove that is used to generate
-  signals that simultaneously drive a set of servos and display data visualization in Microsoft Excel. 
+String mInputString = "";                 // mInputString用來放傳入資料的變數
+boolean mStringComplete = false;          // mInputString是否是完整的 (有無換行符號)
 
-  The RPS functionality captures the classic hand gestures of rock (all fingers full flexion), 
-  paper (all fingers full extension), and scissors (thumb, ring, pinky full flexion, and index, middle full extension). 
-  
-  The RPS code uses the game loop design pattern so that differnet time intervals can be used simultaneously
-  to control output frequency. This is necessary because the serial data needs to be sent at 75 millisecond
-  intervals but the servo need to be updated every 15 milliseconds. This is same concept found in Blink Without Delay.
+// 用來控制序列埠, 伺服馬達, 和程式的流程
+int mServo_Interval = 35;                 // 每35毫秒更新一次伺服馬達的轉動位置
+unsigned long mServo_PreviousTime = millis();    // 紀錄伺服馬達運轉的時間點
 
-  A match of RPS is started after receiving a trigger from Excel. This resets several program flow variables 
-  and storage arrays. The match consists of rounds. Each round consists of a countdown sequence and the 
-  detection of hand gesture. At the end of the rounds a match ending flag is switched. After a pause the
-  final results are displaued in Excel. 
+int mSerial_Interval = 75;                // 每75毫秒更新一次序列埠
+unsigned long mSerial_PreviousTime = millis();   // 紀錄序列埠開啟的時間點
 
-  David Myka, 2017 Microsoft Education Workshop
- * 
- */
+int mRound_Interval = 5000;               // 每5000毫秒偵測一次剪刀石頭布
+unsigned long mRound_PreviousTime = millis();    // 用來記錄剪刀石頭布偵測的時間點
 
-#include <Servo.h>  // Arduino servo library
+int mMatchEnd_Interval = 3000;            // 剪刀石頭布比對完成後3000毫秒再顯示結果
+unsigned long mMatchEnd_PreviousTime = millis();    // 用來記錄比對完成的時間點
 
-// Constants that appear in the serial message.
-const String mDELIMETER = ",";            // cordoba add-in expects a comma delimeted string
+// 用來倒數計時的變數
+int mCountDown = 0;                       // 紀錄現在倒數到哪個數字了
+unsigned long mCountDownStartTime = 0;    // 紀錄開始倒數的時間點
 
-String mInputString = "";                 // string variable to hold incoming data
-boolean mStringComplete = false;          // variable to indicate mInputString is complete (newline found)
+// 剪刀石頭布的常數
+const int ROCK = 1;        // 石頭
+const int PAPER= 2;        // 布
+const int SCISSORS = 3;    // 剪刀
+const int NAG = -1;        // 都不是
 
-// Time intervals used to control delays in serial messaging, servo output, and program flow. 
-int mServo_Interval = 35;                 // Interval between servo position updates
-unsigned long mServo_PreviousTime = millis();    // Timestamp to track interval
+// 剪刀石頭布的變數
+int mPlayer1RPSgesture = 0;  // Player1的手勢
+int mPlayer2RPSgesture = 0;  // Player2的手勢
+int mExcelRPSgesture = 0;    // Excel上的手勢
 
-int mSerial_Interval = 75;                // Intervel between serial writes
-unsigned long mSerial_PreviousTime = millis();   // Timestamp to track interval
-
-int mRound_Interval = 5000;               // Interval between rounds
-unsigned long mRound_PreviousTime = millis();    // Timestamp to track interval
-
-int mMatchEnd_Interval = 3000;            // Interval between end of match and final results display
-unsigned long mMatchEnd_PreviousTime = millis();    // Timestamp to track interval
-
-// countdown variables
-int mCountDown = 0;                       // variable to hold the countdown number sequence
-unsigned long mCountDownStartTime = 0;    // timestamp to start countdown timer
-
-// Hand gesture constants
-const int ROCK = 1;
-const int PAPER= 2;
-const int SCISSORS = 3;
-const int NAG = -1;                       //NOT A GESTURE
-
-// Hand gesture variables
-int mPlayer1RPSgesture = 0;
-int mPlayer2RPSgesture = 0;
-int mExcelRPSgesture = 0;
-
+// TODO: censorTheBird()暫時看不懂
 // Censoring constants used in censorTheBird() - censors WHEN:
 const int MIN_BIRD = 25;                  // middle finger is below this
 const int MAX_BIRD = 55;                  // AND remaining digits are above this
 
-// Sensor min/max constants
-const int mSENSOR_MIN = 0;                // sets the lowest sensor reading to 0
-const int mSENSOR_MAX = 100;              // sets the highest sensor reading to 100
+// 壓力感測器的最小值跟最大值
+const int mSENSOR_MIN = 0;                // 設最小值為0
+const int mSENSOR_MAX = 100;              // 設最大值為100
 
-// Servo min/max constants 0-180 (Note: TowerPro SG90 servos jitter when set to extreme positions)
-const int mSERVO_MIN = 4;                 // sets the lowest servo position
-const int mSERVO_MAX = 176;               // sets the highest servo position
+// 伺服馬達的最大角度跟最小角度
+const int mSERVO_MIN = 4;                 // 設最小角度為4
+const int mSERVO_MAX = 176;               // 設最大角度為176
 
-// Flexion/Extension threshold for detecting finger position
+// 數值超過25代表手指彎曲
 const int flexThreshold = 25;
 
-// Sensor number constant
-const int mNUM_SENSORS = 5;               // 5 fingers
+// 壓力感測器的數量
+const int mNUM_SENSORS = 5;               // 5隻手指頭
 
-// 7x2 Array to store MIN/MAX values for auto calibration
+// 為了自動校準而用來儲存最大最小值的7x2陣列
 int mMinMax[mNUM_SENSORS][2] = {0};
 
-// 7x16 Array to store last 16 values for eliminating spikes
+// 用來儲存最後16個值的7x16陣列，用來消除不穩定脈衝
 const int NUM_SAMPLES = 16;
 int smoothingIndex = 0;
 int mSensorSmoothing[mNUM_SENSORS][NUM_SAMPLES] = {0};
 int mSensorTotal[mNUM_SENSORS] = {0};
 
-// program flow variables
-int mMatchTrigger = 0;                    // Excel sends 1 immediately followed by a 0 to set mStartMatch
-int mStartMatch = 0;                      // mMatchTrigger sets this to 1 to start a match
-int mMatchEnding = 0;                     // When the match is ending but not yet complete
-int mMatchComplete = 1;                   // After final display of round data the match is complete
+// 控制程式流程的變數
+int mMatchTrigger = 0;                    // Excel發送1之後馬上設mStartMatch=0
+int mStartMatch = 0;                      // mMatchTrigger設定這個變數以啟動剪刀石頭布比對
+int mMatchEnding = 0;                     // 比對完成但還沒顯示
+int mMatchComplete = 1;                   // 顯示完成才算完成
 
-int mRoundsPerMatch = 5;                  // The number of rounds per match
-int mRound = 0;                           // The current round number
-//int mRoundWinner;                         // handled by Excel
-//int mMatchWinner = 0;                     // handled by Excel
+int mRoundsPerMatch = 5;                  // 每次剪刀石頭布比對的回合數
+int mRound = 0;                           // 已經比了幾回合
 
-// Arrays to hold each gesture in a round 
+// 存放Player1和Player2每回合的手勢
 int mPlayer1rounds[5];
 int mPlayer2rounds[5];
 
-// Flex sensor variables
+// 紀錄壓力感測器的變數
 int sensor0; int sensor1; int sensor2; int sensor3; int sensor4;
 
-// Servo variables
+// 控制伺服馬達的變數
 Servo servo0; Servo servo1; Servo servo2; Servo servo3; Servo servo4; 
 
 void setup() {
