@@ -84,64 +84,64 @@ Servo servo0; Servo servo1; Servo servo2; Servo servo3; Servo servo4;
 void setup() {
   Serial.begin(9600);  
   
-  // Hand 1 servos
+  // 將5台servo對應到arduino的5個腳位
   servo0.attach(2); servo1.attach(3); servo2.attach(4); servo3.attach(5); servo4.attach(6);
 }
 
 /*
- * START OF MAIN LOOP -------------------------------------------------------------
+ * 開始主程式 -------------------------------------------------------------
  */ 
 void loop()
 {
-  if(mMatchTrigger==1) // Excel sends a trigger to enter into a match. 
+  if(mMatchTrigger==1) // Excel觸發剪刀石頭布
   {    
-    mMatchTrigger = 0;              // reset so we only enter into this once per match
-    mMatchComplete = 0;             // reset match complete flag
-    mRound = 0;                     // reset rounds count    
-    for(int i=0; i<5; i++)          // reset round gesture data
+    mMatchTrigger = 0;              // 每次比對都重設一次mMatchTrigger
+    mMatchComplete = 0;             // 重設mMatchComplete
+    mRound = 0;                     // 重設回合數
+    for(int i=0; i<5; i++)          // 重設Player1跟Player2的手勢
     {
       mPlayer1rounds[i] = 0;
       mPlayer2rounds[i] = 0;
     }
-    mStartMatch = 1;                // start match
+    mStartMatch = 1;                // 開始比對
   }
 
-  if(mStartMatch==1) // Enter into this section once every round.
+  if(mStartMatch==1) // 每回合都都執行這一段一次
   {    
     if( (millis() - mRound_PreviousTime) > mRound_Interval )
     {
-      mRound++;                       // increment round number     
-      mCountDownStartTime = millis(); // reset countdown start time      
-      countDown();                    // enter contdown sequence
-      getRPSGestures();               // gather gesture data from glove      
-      mRound_PreviousTime=millis();   // reset round interval timer
+      mRound++;                       // 回合數+1
+      mCountDownStartTime = millis(); // 重設倒數計時時間
+      countDown();                    // 倒數計時
+      getRPSGestures();               // 收集手勢資料
+      mRound_PreviousTime=millis();   // 重設回合間隔計時器
     }
 
-    // Enter into this section at the end of the match
-    if(mRound == mRoundsPerMatch)     // After last round reset match
+    // 剪刀石頭布比對完後執行這一段
+    if(mRound == mRoundsPerMatch)     // 在最後一回合後重設比對
     {
       mMatchEnding = 1;               
       mMatchTrigger = 0;
       mStartMatch = 0;  
-      mMatchEnd_PreviousTime = millis(); // Start the mMatchEnd_Interval 
+      mMatchEnd_PreviousTime = millis(); // 開始mMatchEnd_Interval 
     }
   }
 
-  // After last round wait for mMatchEnd_Interval to elapse,
-  // then enter into this section to complete the match.
+  // 在最後一回合後等mMatchEnd_Interval的時間逃脫
+  // 然後進入這一段完成比對
   if(mMatchEnding==1 && (millis() - mMatchEnd_PreviousTime) > mMatchEnd_Interval) 
   {
     mMatchEnding = 0;
-    mMatchComplete = 1;       // Trigger sent to Excel to display final results of match
+    mMatchComplete = 1;       // 顯示比對結果在Excel上
   }
 
-  // Process sensors and drive servos - keep the hand moving and data flowing
+  // 處理壓力感測器和伺服馬達: 讓手持續移動和資料持續傳輸
   processSensorsServos();
  
-  // Read Excel commands from serial port
+  // 從序列埠讀取Excel的指令
   processIncomingSerial();
 
-  // Process and send data to Excel via serial port
+  // 透過序列埠處理和傳送資料給Excel
   processOutgoingSerial();  
 }
 
