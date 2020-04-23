@@ -34,7 +34,6 @@ int mPlayer1RPSgesture = 0;  // Player1的手勢
 int mPlayer2RPSgesture = 0;  // Player2的手勢
 int mExcelRPSgesture = 0;    // Excel上的手勢
 
-// TODO: censorTheBird()暫時看不懂
 // Censoring constants used in censorTheBird() - censors WHEN:
 const int MIN_BIRD = 25;                  // middle finger is below this
 const int MAX_BIRD = 55;                  // AND remaining digits are above this
@@ -147,68 +146,67 @@ void loop()
 
 
 /*
- * RPS GESTURE DETECTION
+ * 剪刀石頭布手勢偵測
  */
 void getRPSGestures()
 {
 /*
- *   Sensors are read and finger position is determined
- *   as either full extension ("e") or full flexion ("f")
- *   gesture is a string that is built up of 3 letters 
- *   example of full flexion of 3 fingers: gesture = "fff"
+ *   "e"代表手指伸直
+ *   "f"代表手指全彎
+ *   3個字代表3隻手指頭
+ *   例如: 3隻手指頭全伸為"fff"
  *   
- *   Note: thumb and pinkie are very unreliable so they are 
- *   not used for gesture detection
+ *   Note: 這邊沒有偵測大拇指跟小指
  */
 
-  readSensors();                        // get current position of fingers
+  readSensors();                        // 取得目前手指頭的位置
 
-  String gesture1="";                   // build 
-  gesture1 += fingerPosition(sensor1);  // i-index
-  gesture1 += fingerPosition(sensor2);  // m-middle
-  gesture1 += fingerPosition(sensor3);  // a-ring
+  String gesture1="";                   
+  gesture1 += fingerPosition(sensor1);  // 食指
+  gesture1 += fingerPosition(sensor2);  // 中指
+  gesture1 += fingerPosition(sensor3);  // 無名指
 
-  mPlayer1RPSgesture = getGesture(gesture1);      // Read player 1 RPS gesture
-  mPlayer1rounds[mRound-1] = mPlayer1RPSgesture;  // add it to player 2 round data array
+  mPlayer1RPSgesture = getGesture(gesture1);      // 取得Player1的手勢
+  mPlayer1rounds[mRound-1] = mPlayer1RPSgesture;  // 紀錄在Player1的回合陣列
   
-  mPlayer2rounds[mRound-1] = mExcelRPSgesture;  // add it to player 2 round data array
+  mPlayer2rounds[mRound-1] = mExcelRPSgesture;  // 紀錄在Player2的回合陣列
   mPlayer2RPSgesture = mExcelRPSgesture;
 }
 
-// translates finger position (0-100) into flexion, extension, or out of range
+// 判斷手指現在是伸直、彎曲還是不在範圍內(以0-100代表)
 String fingerPosition(int sensor)
 {
   if(sensor>=0 && sensor <=flexThreshold)
-    {return "e";}  // full extension
+    {return "e";}  // 伸直
   else if(sensor>=flexThreshold && sensor <=100)
-    {return "f";}  // full flexion 
+    {return "f";}  // 全彎
   else 
-    {return "x";}  // out of range (should never happen)
+    {return "x";}  // 不在範圍內(不該發生)
 }
 
 
-// translates flexion/extension into hand gesture
+// 根據彎曲伸直的資料轉換成手勢
 int getGesture(String gesture)
-{ //index, middle, ring only
-  if(gesture == "fff")
+{
+  if(gesture == "fff")        // 石頭
     {return ROCK;}
-  else if(gesture == "eee")
+  else if(gesture == "eee")   // 布
     {return PAPER;}
-  else if(gesture == "eef")
+  else if(gesture == "eef")   // 剪刀
     {return SCISSORS;}
   else
-  {return NAG;}   // Not A Gesture
+  {return NAG;}               // 不是手勢
 }
 
 /* 
- *  COUNTDOWN SEQUENCE
+ *  倒數計時
  */
 void countDown()  
-{ // enter into this and stay here until complete
-  int countdownFinished = 0;                          // reset countown flag
+{ // 這邊會一直執行直到結束
+  int countdownFinished = 0;                          // 重設倒數計時
   while(countdownFinished==0) {
-    int timeSlice = millis() - mCountDownStartTime;   // determine time passed
-    if(timeSlice >= 0 && timeSlice <= 1000) {         // 1st second interval
+    int timeSlice = millis() - mCountDownStartTime;   // 決定時間過了多久
+    if(timeSlice >= 0 && timeSlice <= 1000) {
       mCountDown = 4;
     }
     if(timeSlice >= 1001 && timeSlice <= 2000 ) {
@@ -227,21 +225,21 @@ void countDown()
       mCountDown = -1;
       countdownFinished = 1;
     }
-    processSensorsServos();   // Keep the hand moving   
-    processIncomingSerial();  // Read Excel commands from serial port
-    processOutgoingSerial();  // Process and send message to Excel via serial port
+    processSensorsServos();   // 讓手掌持續移動
+    processIncomingSerial();  // 從序列埠讀取Excel的命令
+    processOutgoingSerial();  // 處理並透過序列埠將訊息送回給Excel
   }
 }
 
 
 /*
- * SENSOR INOUT AND SERVO OUTPUT CODE--------------------------------------------------------------
+ * 輸入壓力感測器以及輸出伺服馬達的程式碼--------------------------------------------------------------
  */
 void processSensorsServos()
 {
-  if((millis() - mServo_PreviousTime) > mServo_Interval) // Enter into this only when interval has elapsed
+  if((millis() - mServo_PreviousTime) > mServo_Interval) // 超過mServer_Interval的時間時才執行
   {
-    mServo_PreviousTime = millis();         // Reset interval timestamp
+    mServo_PreviousTime = millis();         // 重設時間點
     readSensors();
     driveServos();
   } 
@@ -250,12 +248,12 @@ void processSensorsServos()
 
 void readSensors()
 {
-  // Hand sensor reads from analog pins
-  sensor0 = getSensorValue(0);  // p-thumb
-  sensor1 = getSensorValue(1);  // i-index
-  sensor2 = getSensorValue(2);  // m-middle
-  sensor3 = getSensorValue(3);  // a-ring
-  sensor4 = getSensorValue(4);  // c-pinky
+  // 從類比訊號的針腳讀取壓力感測器的資料
+  sensor0 = getSensorValue(0);  // 大拇指
+  sensor1 = getSensorValue(1);  // 食指
+  sensor2 = getSensorValue(2);  // 中指
+  sensor3 = getSensorValue(3);  // 無名指
+  sensor4 = getSensorValue(4);  // 小指
 
   // censor the middle finger gesture
   sensor2 = censorTheBird(sensor0, sensor1, sensor2, sensor3, sensor4);
@@ -271,11 +269,11 @@ void readSensors()
 void driveServos()
 {
   // Hand 1 servo writes
-  servo0.write(mapServo(sensor0)); // p-thumb
-  servo1.write(mapServo(sensor1)); // i-index
-  servo3.write(mapServo(sensor3)); // m-middle
-  servo4.write(mapServo(sensor4)); // a-ring
-  servo2.write(mapServo(sensor2)); // c-pinky
+  servo0.write(mapServo(sensor0)); // 大拇指
+  servo1.write(mapServo(sensor1)); // 食指
+  servo3.write(mapServo(sensor3)); // 中指
+  servo4.write(mapServo(sensor4)); // 無名指
+  servo2.write(mapServo(sensor2)); // 小指
 }
 
 
@@ -292,34 +290,34 @@ int censorTheBird(int thumb, int index, int middle, int ring, int pinky)
 
 int getSensorValue(int sensorPin)
 {   
-  int sensorValue = analogRead(sensorPin);                // read sensor values  
-  sensorValue = smooth(sensorValue, sensorPin);           // smooth out voltage peaks  
-  if(sensorValue < mMinMax[sensorPin][0]) {mMinMax[sensorPin][0] = sensorValue;}  // set min
-  if(sensorValue > mMinMax[sensorPin][1]) {mMinMax[sensorPin][1] = sensorValue;}  // set max  
-  // Map the raw ADC values (5v to range 0-1023) to range 0-100
+  int sensorValue = analogRead(sensorPin);                // 讀取壓力感測器的值
+  sensorValue = smooth(sensorValue, sensorPin);           // 消除電壓尖峰
+  if(sensorValue < mMinMax[sensorPin][0]) {mMinMax[sensorPin][0] = sensorValue;}  // 設定最小值
+  if(sensorValue > mMinMax[sensorPin][1]) {mMinMax[sensorPin][1] = sensorValue;}  // 設定最大值
+  // 將原始ADC的值 (5V對應到0-1023) 轉換成0-100
   sensorValue = map(sensorValue, mMinMax[sensorPin][0], mMinMax[sensorPin][1], mSENSOR_MIN, mSENSOR_MAX);
   return sensorValue;
 }
 
 
 int mapServo(int sensorValue)
-{   // map sensor value to servo position
+{   // 將壓力感測器的值轉換成伺服馬達的轉動位置
   return map(sensorValue, mSENSOR_MIN, mSENSOR_MAX, mSERVO_MIN, mSERVO_MAX);
 }
 
 
 int smooth(int sensorValue, int sensorPin)
 {
-  mSensorTotal[sensorPin] = sensorValue;                            // add to totals array
-  mSensorSmoothing[sensorPin][smoothingIndex] = sensorValue;        // add to smoothing array
-  mSensorTotal[sensorPin] = mSensorTotal[sensorPin] + sensorValue;  // add to total
-  sensorValue = mSensorTotal[sensorPin]/NUM_SAMPLES;                // get moving average 
+  mSensorTotal[sensorPin] = sensorValue;                          
+  mSensorSmoothing[sensorPin][smoothingIndex] = sensorValue;       
+  mSensorTotal[sensorPin] = mSensorTotal[sensorPin] + sensorValue;
+  sensorValue = mSensorTotal[sensorPin]/NUM_SAMPLES;                // 使用移動平均法來對消除電壓尖峰
   return sensorValue;
 }
 
 
 /*
- * INCOMING SERIAL DATA PROCESSING CODE-------------------------------------------------------------------
+ * 處理從序列埠輸入的資料-------------------------------------------------------------------
  */
 
 void processIncomingSerial()
@@ -329,13 +327,13 @@ void processIncomingSerial()
 }
 
 
-//Gather bits from serial port to build mInputString
+// 收集從序列埠進入的位元組成mInputString
 void getSerialData() {
   while (Serial.available()) {
-    char inChar = (char)Serial.read();      // get new byte
-    mInputString += inChar;                  // add it to input string
-    if (inChar == '\n') {                   // if we get a newline... 
-      mStringComplete = true;                // we have a complete string of data to process
+    char inChar = (char)Serial.read();      // 取得新的byte
+    mInputString += inChar;                 // 將之加入mInputString
+    if (inChar == '\n') {                   // 如果遇到換行\n
+      mStringComplete = true;               // 這筆資料就算處理完成了
     }
   }
 }
@@ -343,27 +341,27 @@ void getSerialData() {
 
 void parseSerialData() 
 {
-  if (mStringComplete) { // process data from mInputString to set program variables. 
+  if (mStringComplete) { // 根據mInputString來設定程式變數 
     //process serial data - set variables using: var = getValue(mInputString, ',', index).toInt(); // see getValue function below
     
-    mRound_Interval       = getValue(mInputString, ',', 4).toInt();   //Data Out worksheet cell E5
+    mRound_Interval       = getValue(mInputString, ',', 4).toInt();   // Excel工作表"Data Out"的E5欄位
     mRound_Interval       = mRound_Interval * 1000;
 
     if(mMatchComplete==1){
-      mMatchTrigger       = getValue(mInputString, ',', 5).toInt();   //Data Out worksheet cell F5
+      mMatchTrigger       = getValue(mInputString, ',', 5).toInt();   // Excel工作表"Data Out"的F5欄位
     }
 
-    mExcelRPSgesture    = getValue(mInputString, ',', 8).toInt();   //Data Out worksheet cell I5
+    mExcelRPSgesture    = getValue(mInputString, ',', 8).toInt();   // Excel工作表"Data Out"的I5欄位
       
-    mInputString = "";                         // reset mInputString
-    mStringComplete = false;                   // reset stringComplete flag
+    mInputString = "";                         // 重設mInputString
+    mStringComplete = false;                   // 重設stringComplete
   }
 }
 
 
-//Get value from mInputString using a matching algorithm
+// 利用字串比對演算法取得mInputString的值
 String getValue(String mDataString, char separator, int index)
-{ // mDataString is mInputString, separator is a comma, index is where we want to look in the data 'array'
+{ // mDataString就是mInputString, separator就是逗號, index就是我們在尋找的資料陣列的地方
   int matchingIndex = 0;
   int strIndex[] = {0, -1};
   int maxIndex = mDataString.length()-1; 
@@ -381,30 +379,30 @@ String getValue(String mDataString, char separator, int index)
 
 
 /*
- * OUTGOING SERIAL DATA PROCESSING CODE-------------------------------------------------------------------
+ * 輸出序列埠資料-------------------------------------------------------------------
  */
 void processOutgoingSerial()
 {
-  if((millis() - mSerial_PreviousTime) > mSerial_Interval)  // Enter into this only when interval has elapsed
+  if((millis() - mSerial_PreviousTime) > mSerial_Interval)  // 超過mSerial_Interval的時間時才執行
   {
-    mSerial_PreviousTime = millis(); // Reset interval timestamp
+    mSerial_PreviousTime = millis(); // 重設時間點
     sendDataToSerial(); 
   }
 }
 
 void sendDataToSerial()
 {
-  //Program flow variables for Rock,Paper,Scissors workbook
+  // 剪刀石頭埠的程式流程控制
   Serial.print(0);                 //mWorkbookMode - not used anymore;
   
   Serial.print(mDELIMETER);
-  Serial.print(mMatchTrigger);     // Starts a Rock,Paper,Scissors match
+  Serial.print(mMatchTrigger);     // 開始剪刀石頭布比對
 
   Serial.print(mDELIMETER);
-  Serial.print(mMatchComplete);    // Flag for match completion
+  Serial.print(mMatchComplete);    // 比對完成
   
   Serial.print(mDELIMETER);
-  Serial.print(mCountDown);        // Countdown in between match rounds
+  Serial.print(mCountDown);        // 每回合的倒數計時
 
   // Hand 1 sensor data for visualization in Machines That Emulate Humans workbook. 
   Serial.print(mDELIMETER);
